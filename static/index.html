@@ -1,0 +1,63 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>ChatApp</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 800px; margin: 20px auto; }
+    #messages { border: 1px solid #ccc; height: 400px; overflow-y: scroll; padding: 10px; }
+    .msg { margin-bottom: 8px; }
+    .meta { font-size: 0.9em; color: #666; }
+  </style>
+</head>
+<body>
+  <h1>ChatApp</h1>
+  <label>Username: <input id="username" value="user1" /></label>
+  <button id="connect">Connect</button>
+  <div id="status"></div>
+
+  <div id="messages"></div>
+
+  <input id="input" placeholder="Type a message..." style="width: 80%" />
+  <button id="send">Send</button>
+
+  <script>
+    let ws;
+    document.getElementById('connect').addEventListener('click', () => {
+      const username = document.getElementById('username').value.trim();
+      if (!username) { alert('Enter username'); return; }
+      ws = new WebSocket(`ws://${location.host}/ws?username=${encodeURIComponent(username)}`);
+      ws.onopen = () => { document.getElementById('status').innerText = 'Connected'; };
+      ws.onclose = () => { document.getElementById('status').innerText = 'Disconnected'; };
+      ws.onmessage = (evt) => {
+        try {
+          const data = JSON.parse(evt.data);
+          const messages = document.getElementById('messages');
+          const div = document.createElement('div');
+          div.className = 'msg';
+          const meta = document.createElement('div');
+          meta.className = 'meta';
+          meta.innerText = `${data.username} — ${new Date(data.timestamp).toLocaleTimeString()} — ${data.type}`;
+          const body = document.createElement('div');
+          body.innerText = data.body;
+          div.appendChild(meta);
+          div.appendChild(body);
+          messages.appendChild(div);
+          messages.scrollTop = messages.scrollHeight;
+        } catch (e) {
+          console.error('parse error', e);
+        }
+      };
+    });
+
+    document.getElementById('send').addEventListener('click', () => {
+      const input = document.getElementById('input');
+      const text = input.value.trim();
+      if (!text || !ws || ws.readyState !== WebSocket.OPEN) return;
+      const msg = { body: text }; // server will set username/type/timestamp
+      ws.send(JSON.stringify(msg));
+      input.value = '';
+    });
+  </script>
+</body>
+</html>
